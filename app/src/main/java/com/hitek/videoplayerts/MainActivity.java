@@ -1,5 +1,7 @@
 package com.hitek.videoplayerts;
 
+import android.content.Context;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -23,16 +25,22 @@ import com.vlc.lib.VlcVideoView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import android.util.Log;
 import android.view.View;
 
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.MediaController;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.VideoView;
 
 import hb.xvideoplayer.MxVideoPlayer;
 import hb.xvideoplayer.MxVideoPlayerWidget;
 
 public class MainActivity extends AppCompatActivity {
+
+    public static final String TAG = MainActivity.class.getSimpleName();
 
 //    private String mMediaURL = "https://www.hdpvrcapture.com/hdpvrcapturev3/samples/20140122_132744-1920x1080p30.ts";
 //    private String mMediaURL = "https://www.hdpvrcapture.com/hdpvrcapture/samples/20090228_085119-H.264.m2ts.mp4";
@@ -56,8 +64,10 @@ public class MainActivity extends AppCompatActivity {
         });
 
 //        prepareMxVideoPlayer();
-//        prepareExoVideoPlayer();
-        prepareVLCVideoPlayer();
+        prepareExoVideoPlayer();
+//        prepareVLCVideoPlayer();
+//        prepareDefaultVideoPlayer();
+
     }
 
     void prepareMxVideoPlayer() {
@@ -66,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
         videoPlayerWidget.startPlay(mMediaURL, MxVideoPlayer.SCREEN_LAYOUT_NORMAL, "video name");
     }
 
+    // can play rtmp
     void prepareExoVideoPlayer() {
         BandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
         TrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory(bandwidthMeter);
@@ -87,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
         player.setPlayWhenReady(true);
     }
 
+    // Can play rtmp and .ts (not seekable, not get duration)
     private VlcVideoView vlcVideoView;
     private TextView logInfo;
     void prepareVLCVideoPlayer() {
@@ -96,6 +108,59 @@ public class MainActivity extends AppCompatActivity {
         vlcVideoView.setMediaListenerEvent(new MediaControl(vlcVideoView, logInfo));
         vlcVideoView.setPath(mMediaURL);
         vlcVideoView.startPlay();
+    }
+
+    // Can not play .ts and rtmp
+    private VideoView videoView;
+    private int position = 0;
+    private MediaController mediaController;
+    void prepareDefaultVideoPlayer() {
+        videoView = (VideoView) findViewById(R.id.videoView);
+        mediaController = new MediaController(MainActivity.this);
+        // Set the videoView that acts as the anchor for the MediaController.
+        mediaController.setAnchorView(videoView);
+        // Set MediaController for VideoView
+        videoView.setMediaController(mediaController);
+        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+
+            public void onPrepared(MediaPlayer mediaPlayer) {
+
+                videoView.seekTo(position);
+                if (position == 0) {
+                    videoView.start();
+                }
+
+                // When video Screen change size.
+                mediaPlayer.setOnVideoSizeChangedListener(new MediaPlayer.OnVideoSizeChangedListener() {
+                    @Override
+                    public void onVideoSizeChanged(MediaPlayer mp, int width, int height) {
+
+                        // Re-Set the videoView that acts as the anchor for the MediaController
+                        mediaController.setAnchorView(videoView);
+                    }
+                });
+            }
+        });
+
+        playURLVideo(this, videoView, mMediaURL);
+    }
+
+    // String videoURL = "https://raw.githubusercontent.com/o7planning/webexamples/master/_testdatas_/mov_bbb.mp4";
+    // String videoURL = "https://www.radiantmediaplayer.com/media/bbb-360p.mp4";
+    public static void playURLVideo(Context context, VideoView videoView, String videoURL)  {
+        try {
+            Log.i(TAG, "Video URL: "+ videoURL);
+
+            Uri uri= Uri.parse( videoURL );
+
+            videoView.setVideoURI(uri);
+            videoView.requestFocus();
+
+        } catch(Exception e) {
+            Log.e(TAG, "Error Play URL Video: "+ e.getMessage());
+            Toast.makeText(context,"Error Play URL Video: "+ e.getMessage(),Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
     }
 
     @Override
